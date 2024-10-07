@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sudoku Solver</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            margin: 20px;
+        }
+        td {
+            border: 1px solid black;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            position: relative;
+        }
+        input[type="number"] {
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            border: none;
+            font-size: 1.2em;
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+        tr:nth-child(3n + 1) td {
+            border-bottom: 3px solid black;
+        }
+        td:nth-child(3n) {
+            border-right: 3px solid black;
+        }
+        tr:last-child td {
+            border-bottom: 3px solid black;
+        }
+        td:last-child {
+            border-right: 3px solid black;
+        }
+        .highlight {
+            background-color: red; /* Highlighting wrong attempts */
+        }
+    </style>
+</head>
+<body>
+    <h1>Sudoku Solver using backtracking</h1>
+    <form id="sudoku-form">
+        <table>
+            <tbody>
+                <script>
+                    for (let row = 0; row < 9; row++) {
+                        document.write("<tr>");
+                        for (let col = 0; col < 9; col++) {
+                            document.write(`<td><input type="number" min="0" max="9" name="cell-${row}-${col}" /></td>`);
+                        }
+                        document.write("</tr>");
+                    }
+                </script>
+            </tbody>
+        </table>
+        <button type="submit">Solve</button>
+    </form>
+    <pre id="result"></pre>
+    <script>
+        document.getElementById('sudoku-form').onsubmit = async (e) => {
+            e.preventDefault();
+            
+            // Gather all cells from the form
+            const formData = new FormData(e.target);
+            const cells = Array.from({ length: 9 }, () => Array(9).fill(0));
+            formData.forEach((value, key) => {
+                const [_, row, col] = key.split('-');
+                cells[row][col] = value ? parseInt(value) : 0; // Set empty cells as 0
+            });
+    
+            try {
+                // Send the form data to the backend to solve the puzzle
+                const response = await fetch('/solve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cells }),
+                });
+    
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Server error: ${errorText}`);
+                }
+    
+                const steps = await response.json(); // Get the steps from the response
+    
+                if (steps && steps.length > 0) {
+                    await displaySteps(steps); // Display steps if available
+                } else {
+                    document.getElementById('result').innerText = "No solution found!";
+                }
+            } catch (error) {
+                document.getElementById('result').innerText = `Error: ${error.message}`;
+                console.error(error);
+            }
+        };
+    
+        // Display the steps in a visual manner with a 50ms delay between each step
+        async function displaySteps(steps) {
+            const inputs = document.querySelectorAll('input[type="number"]');
+            
+            // Loop through each step and update the grid
+            for (const step of steps) {
+                for (let row = 0; row < 9; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        const input = inputs[row * 9 + col];
+                        if (step[row][col] !== 0) {
+                            input.value = step[row][col];
+                            input.style.color = 'red'; // Color solved cells red
+                        } else {
+                            input.value = ''; // Clear empty cells
+                        }
+                    }
+                }
+                await new Promise(resolve => setTimeout(resolve, 50)); // 50ms delay for visualization
+            }
+    
+            // Final message to the user
+            document.getElementById('result').innerText = "Sudoku solved!";
+        }
+    </script>
+</body>
+</html>
